@@ -6,11 +6,15 @@ import (
 )
 
 type Bot struct {
-	bot *tgbotapi.BotAPI
+	bot        *tgbotapi.BotAPI
+	userStates map[int64]string
 }
 
 func NewBot(bot *tgbotapi.BotAPI) *Bot {
-	return &Bot{bot: bot}
+	return &Bot{
+		bot:        bot,
+		userStates: make(map[int64]string),
+	}
 }
 
 func (b *Bot) Start() error {
@@ -44,10 +48,14 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 			continue
 		}
 		if update.Message.IsCommand() {
-			b.handleCommand(update.Message)
+			if err := b.handleCommand(update.Message); err != nil {
+				log.Println(err)
+			}
 			continue
 		}
-		b.handleMessage(update.Message)
+		if err := b.handleMessage(update.Message); err != nil {
+			log.Println(err)
+		}
 
 	}
 }
