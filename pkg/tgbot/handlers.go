@@ -192,7 +192,12 @@ func handleSelectStore(b *Bot, callbackQuery *tgbotapi.CallbackQuery, data strin
 			break
 		}
 	}
-	b.bot.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Товар '%s' добавлен в список покупок для магазина '%s'.", itemName, storeName)))
+	b.bot.Send(
+		tgbotapi.NewMessage(
+			chatID,
+			fmt.Sprintf("Товар '%s' добавлен в список покупок для магазина '%s'.", itemName, storeName),
+		),
+	)
 
 	// Ответ на callback, чтобы убрать "загрузка"
 	b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(callbackQuery.ID, "Магазин выбран"))

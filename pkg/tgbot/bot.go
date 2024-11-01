@@ -32,7 +32,8 @@ func (b *Bot) Start() error {
 }
 
 func (b *Bot) initUpdatesChannel() (tgbotapi.UpdatesChannel, error) {
-	u := tgbotapi.NewUpdate(0)
+	// Устанавливаем offset = -1 для пропуска старых сообщений
+	u := tgbotapi.NewUpdate(-1)
 	u.Timeout = 60
 
 	updatesChanel, err := b.bot.GetUpdatesChan(u)
