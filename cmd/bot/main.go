@@ -9,8 +9,7 @@ import (
 )
 
 func main() {
-	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
-	telegramBot, err := tgbotapi.NewBotAPI(botToken)
+	telegramBot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_BOT_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}

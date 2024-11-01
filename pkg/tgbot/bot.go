@@ -44,6 +44,12 @@ func (b *Bot) initUpdatesChannel() (tgbotapi.UpdatesChannel, error) {
 
 func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 	for update := range updates {
+		if update.CallbackQuery != nil {
+			if err := b.handleCallbackQuery(update.CallbackQuery); err != nil {
+				log.Println(err)
+			}
+			continue
+		}
 		if update.Message == nil {
 			continue
 		}
@@ -58,4 +64,8 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 		}
 
 	}
+}
+
+func (b *Bot) userState(userId int) string {
+	return b.userStates[int64(userId)]
 }
