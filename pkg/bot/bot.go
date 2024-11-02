@@ -1,19 +1,22 @@
 package bot
 
 import (
+	"github.com/glaurungh/slbot/internal/services"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 )
 
 type Bot struct {
-	bot        *tgbotapi.BotAPI
-	userStates map[int64]string
+	bot          *tgbotapi.BotAPI
+	storeService *services.StoreService
+	userStates   map[int64]string
 }
 
-func NewBot(bot *tgbotapi.BotAPI) *Bot {
+func NewBot(bot *tgbotapi.BotAPI, storeService *services.StoreService) *Bot {
 	return &Bot{
-		bot:        bot,
-		userStates: make(map[int64]string),
+		bot:          bot,
+		storeService: storeService,
+		userStates:   make(map[int64]string),
 	}
 }
 
