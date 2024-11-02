@@ -9,13 +9,15 @@ import (
 type Bot struct {
 	bot          *tgbotapi.BotAPI
 	storeService *services.StoreService
+	itemService  *services.ShoppingItemService
 	userStates   map[int64]string
 }
 
-func NewBot(bot *tgbotapi.BotAPI, storeService *services.StoreService) *Bot {
+func NewBot(bot *tgbotapi.BotAPI, storeService *services.StoreService, itemService *services.ShoppingItemService) *Bot {
 	return &Bot{
 		bot:          bot,
 		storeService: storeService,
+		itemService:  itemService,
 		userStates:   make(map[int64]string),
 	}
 }

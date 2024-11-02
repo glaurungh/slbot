@@ -42,9 +42,11 @@ func main() {
 
 	// Создание репозитория и сервиса
 	storeRepo := repos.NewPostgresStoreRepo(dbPool)
+	itemRepo := repos.NewPostgresShoppingItemRepo(dbPool)
 	storeService := services.NewStoreService(storeRepo)
+	itemService := services.NewShoppingItemService(itemRepo)
 
-	shoppingListBot := bot.NewBot(telegramBot, storeService)
+	shoppingListBot := bot.NewBot(telegramBot, storeService, itemService)
 
 	if err = shoppingListBot.Start(); err != nil {
 		log.Fatal(err)

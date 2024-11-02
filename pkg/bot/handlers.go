@@ -171,6 +171,8 @@ func handleViewList(b *Bot, chatID int64) {
 
 	stores, _ := b.storeService.GetAll(context.Background())
 
+	shoppingList, _ := b.itemService.GetAll(context.Background())
+
 	for _, item := range shoppingList {
 		storeName := "Неизвестно"
 		for _, store := range stores {
@@ -205,11 +207,12 @@ func handleSelectStore(b *Bot, callbackQuery *tgbotapi.CallbackQuery, data strin
 	itemName := shoppingList[itemIDCounter].Name
 
 	// Добавляем товар в список покупок
-	shoppingList[itemIDCounter] = models.ShoppingItem{Name: itemName, StoreID: storeID}
+	newItem := models.ShoppingItem{ID: 0, Name: itemName, StoreID: storeID}
+	b.itemService.Create(context.Background(), &newItem)
 
 	// Сброс состояния и временных данных
 	b.userStates[int64(userID)] = ""
-	//delete(userTempData, int64(userID))
+	delete(shoppingList, itemIDCounter)
 
 	stores, _ := b.storeService.GetAll(context.Background())
 

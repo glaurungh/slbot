@@ -12,3 +12,11 @@ type StoreRepo interface {
 	GetAll(context.Context) ([]models.Store, error)
 	Delete(context.Context, int) error
 }
+
+type ShoppingItemRepo interface {
+	Put(context.Context, *models.ShoppingItem) error
+	GetByStoreID(context.Context, int) ([]models.ShoppingItem, error)
+	GetAll(context.Context) ([]models.ShoppingItem, error)
+	Delete(context.Context, int) error
+	DeleteMulti(context.Context, []int) error
+}
