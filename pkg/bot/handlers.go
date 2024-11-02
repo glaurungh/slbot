@@ -1,7 +1,8 @@
-package tgbot
+package bot
 
 import (
 	"fmt"
+	"github.com/glaurungh/slbot/internal/domain/models"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"strconv"
@@ -94,8 +95,8 @@ func (b *Bot) handleCallbackQuery(callbackQuery *tgbotapi.CallbackQuery) error {
 }
 
 // Карты для хранения данных
-var stores = make(map[int]Store)
-var shoppingList = make(map[int]ShoppingItem)
+var stores = make(map[int]models.Store)
+var shoppingList = make(map[int]models.ShoppingItem)
 
 // Переменные для генерации ID
 var storeIDCounter, itemIDCounter int
@@ -107,7 +108,7 @@ func handleAddStore(b *Bot, chatID int64, userID int, name string) {
 		return
 	}
 	storeIDCounter++
-	stores[storeIDCounter] = Store{ID: storeIDCounter, Name: name}
+	stores[storeIDCounter] = models.Store{ID: storeIDCounter, Name: name}
 	b.userStates[int64(userID)] = "" // Сброс состояния
 	b.bot.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Магазин '%s' добавлен с ID %d.", name, storeIDCounter)))
 }
@@ -118,17 +119,39 @@ func handleAddItem(b *Bot, chatID int64, userID int, itemName string) {
 		b.bot.Send(tgbotapi.NewMessage(chatID, "Название товара не может быть пустым. Введите название снова:"))
 		return
 	}
-	b.userStates[int64(userID)] = "waiting_for_item_quantity"
-	b.bot.Send(tgbotapi.NewMessage(chatID, "Введите количество:"))
+	b.userStates[int64(userID)] = "waiting_for_store_selection"
+
+	// Функция для создания inline-кнопок с разбиением по строкам
+	createStoresInlineKeyboard := func(maxCharsPerRow int) tgbotapi.InlineKeyboardMarkup {
+		var rows [][]tgbotapi.InlineKeyboardButton
+		var row []tgbotapi.InlineKeyboardButton
+		currentRowLength := 0
+
+		for _, store := range stores {
+			callbackData := fmt.Sprintf("select_store:%d", store.ID)
+			button := tgbotapi.NewInlineKeyboardButtonData(store.Name, callbackData)
+
+			// Проверяем, если текущая строка + новая кнопка превышает maxCharsPerRow
+			if currentRowLength+len(store.Name) > maxCharsPerRow && len(row) > 0 {
+				rows = append(rows, row)
+				row = nil
+				currentRowLength = 0
+			}
+
+			row = append(row, button)
+			currentRowLength += len(store.Name) + 1 // Учитываем пробел между кнопками
+		}
+
+		// Добавляем последнюю строку кнопок
+		if len(row) > 0 {
+			rows = append(rows, row)
+		}
+
+		return tgbotapi.NewInlineKeyboardMarkup(rows...)
+	}
 
 	// Создаем инлайн-кнопки для выбора магазина с форматом "select_store:<storeID>"
-	var buttons []tgbotapi.InlineKeyboardButton
-	for _, store := range stores {
-		callbackData := fmt.Sprintf("select_store:%d", store.ID)
-		button := tgbotapi.NewInlineKeyboardButtonData(store.Name, callbackData)
-		buttons = append(buttons, button)
-	}
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(buttons)
+	keyboard := createStoresInlineKeyboard(50)
 
 	// Отправляем сообщение с инлайн-кнопками
 	msg := tgbotapi.NewMessage(chatID, "Выберите магазин для этого товара:")
@@ -136,7 +159,7 @@ func handleAddItem(b *Bot, chatID int64, userID int, itemName string) {
 	b.bot.Send(msg)
 
 	// Сохраняем промежуточное значение
-	shoppingList[itemIDCounter+1] = ShoppingItem{Name: itemName}
+	shoppingList[itemIDCounter+1] = models.ShoppingItem{Name: itemName}
 	itemIDCounter++
 }
 
@@ -178,7 +201,7 @@ func handleSelectStore(b *Bot, callbackQuery *tgbotapi.CallbackQuery, data strin
 	itemName := shoppingList[itemIDCounter].Name
 
 	// Добавляем товар в список покупок
-	shoppingList[itemIDCounter] = ShoppingItem{Name: itemName, StoreID: storeID}
+	shoppingList[itemIDCounter] = models.ShoppingItem{Name: itemName, StoreID: storeID}
 
 	// Сброс состояния и временных данных
 	b.userStates[int64(userID)] = ""

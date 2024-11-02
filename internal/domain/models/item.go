@@ -1,9 +1,4 @@
-package tgbot
-
-type Store struct {
-	ID   int
-	Name string
-}
+package models
 
 type ShoppingItem struct {
 	ID      int

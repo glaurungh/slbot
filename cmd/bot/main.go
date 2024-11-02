@@ -2,7 +2,7 @@ package main
 
 import (
 	_ "fmt"
-	"github.com/glaurungh/slbot/pkg/tgbot"
+	"github.com/glaurungh/slbot/pkg/bot"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"os"
@@ -16,7 +16,7 @@ func main() {
 
 	telegramBot.Debug = true
 
-	shoppingListBot := tgbot.NewBot(telegramBot)
+	shoppingListBot := bot.NewBot(telegramBot)
 
 	if err = shoppingListBot.Start(); err != nil {
 		log.Fatal(err)
