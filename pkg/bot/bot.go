@@ -2,7 +2,7 @@ package bot
 
 import (
 	"github.com/glaurungh/slbot/internal/services"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 )
 
@@ -26,26 +26,25 @@ func (b *Bot) Start() error {
 
 	log.Printf("Authorized on account %s", b.bot.Self.UserName)
 
-	updatesChanel, err := b.initUpdatesChannel()
-	if err != nil {
+	if err := b.setUpCommands(); err != nil {
 		return err
 	}
+
+	updatesChanel := b.initUpdatesChannel()
 
 	b.handleUpdates(updatesChanel)
 
 	return nil
 }
 
-func (b *Bot) initUpdatesChannel() (tgbotapi.UpdatesChannel, error) {
+func (b *Bot) initUpdatesChannel() tgbotapi.UpdatesChannel {
 	// Устанавливаем offset = -1 для пропуска старых сообщений
 	u := tgbotapi.NewUpdate(-1)
 	u.Timeout = 60
 
-	updatesChanel, err := b.bot.GetUpdatesChan(u)
-	if err != nil {
-		return nil, err
-	}
-	return updatesChanel, nil
+	updatesChanel := b.bot.GetUpdatesChan(u)
+
+	return updatesChanel
 }
 
 func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
@@ -72,6 +71,25 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 	}
 }
 
-func (b *Bot) userState(userId int) string {
-	return b.userStates[int64(userId)]
+func (b *Bot) userState(userId int64) string {
+	return b.userStates[userId]
+}
+
+func (b *Bot) setUpCommands() error {
+	// Установка команд бота
+	commands := []tgbotapi.BotCommand{
+		{Command: commandStart, Description: "Начать работу с ботом"},
+		{Command: commandAddStore, Description: "Добавить магазин"},
+		{Command: commandAddItem, Description: "Добавить в список"},
+		{Command: commandDeleteItems, Description: "Удалить из списка"},
+		{Command: commandViewList, Description: "Просмотреть списка покупок"},
+		//{Command: "delete_store", Description: "Удалить магазин"},
+	}
+
+	// Устанавливаем команды в Telegram
+	_, err := b.bot.Request(tgbotapi.NewSetMyCommands(commands...))
+	if err != nil {
+		log.Fatalf("Ошибка установки команд: %v", err)
+	}
+	return nil
 }

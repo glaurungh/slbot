@@ -4,17 +4,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/glaurungh/slbot/internal/domain/models"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strconv"
 	"strings"
 )
 
 const (
-	commandStart    = "start"
-	commandAddStore = "add_store"
-	commandAddItem  = "add_item"
-	commandViewList = "view_list"
+	commandStart       = "start"
+	commandAddStore    = "add_store"
+	commandAddItem     = "add_item"
+	commandViewList    = "view_list"
+	commandDeleteItems = "remove_items"
 )
 
 func (b *Bot) handleMessage(message *tgbotapi.Message) error {
@@ -30,6 +31,8 @@ func (b *Bot) handleMessage(message *tgbotapi.Message) error {
 		// Игнорируем текстовые сообщения, пока пользователь выбирает магазин
 	case "waiting_for_item_name":
 		handleAddItem(b, chatID, userID, message.Text)
+	case "waiting_for_item_ids_to_delete":
+		handleDeleteItems(b, chatID, message.Text)
 	default:
 		_, err := b.bot.Send(
 			tgbotapi.NewMessage(
@@ -64,6 +67,11 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) error {
 		return err
 	case commandViewList:
 		handleViewList(b, chatID)
+	case commandDeleteItems:
+		handleViewList(b, chatID)
+		b.userStates[int64(userID)] = "waiting_for_item_ids_to_delete"
+		_, err := b.bot.Send(tgbotapi.NewMessage(chatID, "Введите через пробел идентификаторы товаров, которые необходимо удалить из списка:"))
+		return err
 	default:
 		msg := tgbotapi.NewMessage(chatID, "Такого не умею 🤷")
 		_, err := b.bot.Send(msg)
@@ -78,8 +86,12 @@ func (b *Bot) handleCallbackQuery(callbackQuery *tgbotapi.CallbackQuery) error {
 	// Парсим действие и данные из callback data
 	parts := strings.Split(callbackQuery.Data, ":")
 	if len(parts) != 2 {
-		_, err := b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(callbackQuery.ID, "Неверный формат данных"))
-		return err
+		// Создаем ответ на callback
+		answer := tgbotapi.NewCallback(callbackQuery.ID, "Неверный формат данных")
+		if _, err := b.bot.Request(answer); err != nil {
+			return err
+		}
+		return nil
 	}
 	action := parts[0]
 	data := parts[1]
@@ -89,8 +101,10 @@ func (b *Bot) handleCallbackQuery(callbackQuery *tgbotapi.CallbackQuery) error {
 	case "select_store":
 		handleSelectStore(b, callbackQuery, data)
 	default:
-		_, err := b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(callbackQuery.ID, "Неизвестное действие"))
-		return err
+		answer := tgbotapi.NewCallback(callbackQuery.ID, "Неизвестное действие")
+		if _, err := b.bot.Request(answer); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -102,7 +116,7 @@ var shoppingList = make(map[int]models.ShoppingItem)
 var itemIDCounter int
 
 // Функции для работы с магазинами
-func handleAddStore(b *Bot, chatID int64, userID int, name string) {
+func handleAddStore(b *Bot, chatID int64, userID int64, name string) {
 	if name == "" {
 		b.bot.Send(tgbotapi.NewMessage(chatID, "Название магазина не может быть пустым. Введите название снова:"))
 		return
@@ -114,7 +128,7 @@ func handleAddStore(b *Bot, chatID int64, userID int, name string) {
 }
 
 // Функции для работы с элементами списка покупок
-func handleAddItem(b *Bot, chatID int64, userID int, itemName string) {
+func handleAddItem(b *Bot, chatID int64, userID int64, itemName string) {
 	if itemName == "" {
 		b.bot.Send(tgbotapi.NewMessage(chatID, "Название товара не может быть пустым. Введите название снова:"))
 		return
@@ -199,7 +213,8 @@ func handleSelectStore(b *Bot, callbackQuery *tgbotapi.CallbackQuery, data strin
 
 	storeID, err := strconv.Atoi(data)
 	if err != nil {
-		b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(callbackQuery.ID, "Неверный выбор магазина"))
+		answer := tgbotapi.NewCallback(callbackQuery.ID, "Неверный выбор магазина")
+		b.bot.Request(answer)
 		return
 	}
 
@@ -232,5 +247,44 @@ func handleSelectStore(b *Bot, callbackQuery *tgbotapi.CallbackQuery, data strin
 	)
 
 	// Ответ на callback, чтобы убрать "загрузка"
-	b.bot.AnswerCallbackQuery(tgbotapi.NewCallback(callbackQuery.ID, "Магазин выбран"))
+	answer := tgbotapi.NewCallback(callbackQuery.ID, "Магазин выбран")
+	b.bot.Request(answer)
+}
+
+// Обработка удаления товаров из списка покупок
+func handleDeleteItems(b *Bot, chatID int64, itemIds string) {
+	// Получаем сообщение пользователя с ID для удаления
+	idsStr := strings.TrimSpace(itemIds) // Убираем пробелы в начале и конце
+
+	// Разбиваем строку на элементы и фильтруем лишние пробелы
+	idParts := strings.Fields(idsStr)
+
+	var ids []int
+	for _, part := range idParts {
+		id, err := strconv.Atoi(part)
+		if err != nil {
+			log.Printf("Invalid ID: %s", part)
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	// Проверяем, есть ли корректные ID для удаления
+	if len(ids) == 0 {
+		msg := tgbotapi.NewMessage(chatID, "Не удалось найти корректные идентификаторы для удаления.")
+		b.bot.Send(msg)
+		return
+	}
+
+	// Шаг 3: Удаляем элементы из списка покупок
+	err := b.itemService.DeleteMulti(context.Background(), ids)
+	if err != nil {
+		log.Printf("Error deleting shopping items: %v", err)
+		msg := tgbotapi.NewMessage(chatID, "Ошибка при удалении элементов. Попробуйте позже.")
+		b.bot.Send(msg)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(chatID, "Элементы успешно удалены.")
+	b.bot.Send(msg)
 }

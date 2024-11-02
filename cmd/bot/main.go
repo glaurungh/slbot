@@ -6,7 +6,7 @@ import (
 	"github.com/glaurungh/slbot/internal/repos"
 	"github.com/glaurungh/slbot/internal/services"
 	"github.com/glaurungh/slbot/pkg/bot"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"os"
