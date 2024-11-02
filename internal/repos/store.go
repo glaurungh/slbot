@@ -17,14 +17,33 @@ func NewPostgresStoreRepo(db *pgxpool.Pool) *PostgresStoreRepo {
 
 // Put добавляет или обновляет магазин в базе данных
 func (repo *PostgresStoreRepo) Put(ctx context.Context, store *models.Store) error {
+	if store.ID == 0 {
+		return repo.create(ctx, store)
+	}
 	// Команда выполняет вставку или обновляет `name`, если `id` уже существует
 	err := repo.db.QueryRow(ctx,
-		`INSERT INTO stores (id, name)
+		`INSERT INTO stores (name)
 		 VALUES ($1, $2)
 		 ON CONFLICT (id) 
 		 DO UPDATE SET name = EXCLUDED.name
 		 RETURNING id`,
 		store.ID, store.Name,
+	).Scan(&store.ID)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Put добавляет или обновляет магазин в базе данных
+func (repo *PostgresStoreRepo) create(ctx context.Context, store *models.Store) error {
+	// Команда выполняет вставку или обновляет `name`, если `id` уже существует
+	err := repo.db.QueryRow(ctx,
+		`INSERT INTO stores (name)
+		 VALUES ($1)
+		 RETURNING id`,
+		store.Name,
 	).Scan(&store.ID)
 
 	if err != nil {
@@ -61,7 +80,7 @@ func (repo *PostgresStoreRepo) GetByName(ctx context.Context, name string) (mode
 
 // GetAll возвращает все магазины
 func (repo *PostgresStoreRepo) GetAll(ctx context.Context) ([]models.Store, error) {
-	rows, err := repo.db.Query(ctx, "SELECT id, name FROM stores")
+	rows, err := repo.db.Query(ctx, "SELECT id, name FROM stores ORDER BY id")
 	if err != nil {
 		return nil, err
 	}

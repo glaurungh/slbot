@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	"github.com/glaurungh/slbot/internal/domain/models"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -95,11 +96,10 @@ func (b *Bot) handleCallbackQuery(callbackQuery *tgbotapi.CallbackQuery) error {
 }
 
 // Карты для хранения данных
-var stores = make(map[int]models.Store)
 var shoppingList = make(map[int]models.ShoppingItem)
 
 // Переменные для генерации ID
-var storeIDCounter, itemIDCounter int
+var itemIDCounter int
 
 // Функции для работы с магазинами
 func handleAddStore(b *Bot, chatID int64, userID int, name string) {
@@ -107,10 +107,10 @@ func handleAddStore(b *Bot, chatID int64, userID int, name string) {
 		b.bot.Send(tgbotapi.NewMessage(chatID, "Название магазина не может быть пустым. Введите название снова:"))
 		return
 	}
-	storeIDCounter++
-	stores[storeIDCounter] = models.Store{ID: storeIDCounter, Name: name}
+	newStore := models.Store{Name: name}
+	b.storeService.Create(context.Background(), &newStore)
 	b.userStates[int64(userID)] = "" // Сброс состояния
-	b.bot.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Магазин '%s' добавлен с ID %d.", name, storeIDCounter)))
+	b.bot.Send(tgbotapi.NewMessage(chatID, fmt.Sprintf("Магазин '%s' добавлен.", name)))
 }
 
 // Функции для работы с элементами списка покупок
@@ -126,6 +126,8 @@ func handleAddItem(b *Bot, chatID int64, userID int, itemName string) {
 		var rows [][]tgbotapi.InlineKeyboardButton
 		var row []tgbotapi.InlineKeyboardButton
 		currentRowLength := 0
+
+		stores, _ := b.storeService.GetAll(context.Background())
 
 		for _, store := range stores {
 			callbackData := fmt.Sprintf("select_store:%d", store.ID)
@@ -167,6 +169,8 @@ func handleAddItem(b *Bot, chatID int64, userID int, itemName string) {
 func handleViewList(b *Bot, chatID int64) {
 	var result strings.Builder
 
+	stores, _ := b.storeService.GetAll(context.Background())
+
 	for _, item := range shoppingList {
 		storeName := "Неизвестно"
 		for _, store := range stores {
@@ -206,6 +210,8 @@ func handleSelectStore(b *Bot, callbackQuery *tgbotapi.CallbackQuery, data strin
 	// Сброс состояния и временных данных
 	b.userStates[int64(userID)] = ""
 	//delete(userTempData, int64(userID))
+
+	stores, _ := b.storeService.GetAll(context.Background())
 
 	// Подтверждаем добавление товара
 	storeName := "Неизвестно"
